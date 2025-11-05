@@ -8,6 +8,16 @@
 import Dependencies
 import Foundation
 
+// MARK: - Constants
+
+private enum MockConstants {
+    /// Mock purchase delay in nanoseconds (5ms) - simulates network latency
+    static let purchaseDelayNanoseconds: UInt64 = 5_000_000
+
+    /// Transaction update delay in nanoseconds (100ms) - simulates async updates
+    static let transactionUpdateDelayNanoseconds: UInt64 = 100_000_000
+}
+
 @available(iOS 15.0, *)
 extension DependencyValues {
     public var storeKitClient: StoreKitClient {
@@ -24,6 +34,9 @@ extension StoreKitClient: TestDependencyKey {
 
 @available(iOS 15.0, *)
 extension StoreKitClient {
+    /// A no-op implementation that performs no actions.
+    ///
+    /// Useful for tests where you want to ensure no StoreKit operations occur.
     public static let noop = Self(
         receiptURL: { nil },
         canMakePayments: { false },
@@ -32,11 +45,15 @@ extension StoreKitClient {
         observeTransactions: { .never },
         requestReview: { },
         purchase: { _ in
-            .init(productID: "com.example.product", productType: .nonConsumable, rawValue: nil)
+            .init(rawValue: nil)
         },
-        restorePurchases: { [] }
+        restorePurchases: { [] },
+        getLatestTransaction: { nil }
     )
     
+    /// A failing implementation that throws errors for operations.
+    ///
+    /// Useful for testing error handling paths in your code.
     public static let failing = Self(
         receiptURL: { nil },
         canMakePayments: { false },
@@ -47,9 +64,14 @@ extension StoreKitClient {
         purchase: { _ in
             throw URLError(.badServerResponse)
         },
-        restorePurchases: { [] }
+        restorePurchases: { [] },
+        getLatestTransaction: { nil }
     )
     
+    /// A successful implementation with mock products and transactions.
+    ///
+    /// Returns three mock products (weekly, monthly, yearly) and simulates
+    /// successful purchases with a small delay.
     public static let happy = Self(
         receiptURL: { nil },
         canMakePayments: { true },
@@ -64,17 +86,72 @@ extension StoreKitClient {
         processUnfinishedConsumables: { _ in },
         observeTransactions: { .never },
         requestReview: { },
-        purchase: { productID in
-            try await Task.sleep(nanoseconds: 5_000_000)
-            let transaction = StoreKitClient.Transaction(
-                productID: productID,
-                productType: .nonConsumable,
-                purchaseDate: Date(),
-                expirationDate: Date().addingTimeInterval(7 * 24 * 3600),
-                displayPrice: "$0.99",
-                rawValue: nil)
-            return transaction
+        purchase: { _ in
+            try await Task.sleep(nanoseconds: MockConstants.purchaseDelayNanoseconds)
+            return .init(rawValue: nil)
         },
-        restorePurchases: { [] }
+        restorePurchases: { [] },
+        getLatestTransaction: { .mockSubscription }
+    )
+
+    /// A mock with active subscription restoration.
+    ///
+    /// Simulates a user with an active subscription that can be restored.
+    public static let withActiveSubscription = Self(
+        receiptURL: { nil },
+        canMakePayments: { true },
+        loadProducts: { _ in
+            [.init(id: "com.example.premium", displayName: "Premium", description: "Premium subscription", price: 9.99, displayPrice: "$9.99", type: .autoRenewable)]
+        },
+        processUnfinishedConsumables: { _ in },
+        observeTransactions: { .never },
+        requestReview: { },
+        purchase: { _ in .mockSubscription },
+        restorePurchases: { [.mockSubscription] },
+        getLatestTransaction: { .mockSubscription }
+    )
+
+    /// A mock that simulates consumable purchases.
+    ///
+    /// Includes unfinished consumables for testing delivery flows.
+    public static let withConsumables = Self(
+        receiptURL: { nil },
+        canMakePayments: { true },
+        loadProducts: { _ in
+            [.init(id: "com.example.coins100", displayName: "100 Coins", description: "100 game coins", price: 0.99, displayPrice: "$0.99", type: .consumable)]
+        },
+        processUnfinishedConsumables: { handler in
+            try? await handler(.mockConsumable)
+        },
+        observeTransactions: { .never },
+        requestReview: { },
+        purchase: { _ in .mockConsumable },
+        restorePurchases: { [] },
+        getLatestTransaction: { nil }
+    )
+
+    /// A mock that emits transaction updates.
+    ///
+    /// Simulates the transaction observation stream with updates.
+    public static let withTransactionUpdates = Self(
+        receiptURL: { nil },
+        canMakePayments: { true },
+        loadProducts: { _ in [] },
+        processUnfinishedConsumables: { _ in },
+        observeTransactions: {
+            AsyncStream { continuation in
+                Task {
+                    try? await Task.sleep(nanoseconds: MockConstants.transactionUpdateDelayNanoseconds)
+                    continuation.yield(.updated(.mockSubscription))
+                    try? await Task.sleep(nanoseconds: MockConstants.transactionUpdateDelayNanoseconds)
+                    continuation.yield(.updated(.mockConsumable))
+                    continuation.finish()
+                }
+            }
+        },
+        requestReview: { },
+        purchase: { _ in .mockSubscription },
+        restorePurchases: { [] },
+        getLatestTransaction: { .mockSubscription }
     )
 }

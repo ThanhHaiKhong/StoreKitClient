@@ -7,13 +7,27 @@
 
 import StoreKitClient
 import StoreKit
+
+#if canImport(UIKit)
 import UIKit
+#endif
+
+// MARK: - UserDefaults Keys
+
+private enum UserDefaultsKey {
+    private static let prefix = "StoreKitClient"
+
+    static func deliveredConsumable(_ transactionID: UInt64) -> String {
+        "\(prefix)_delivered_\(transactionID)"
+    }
+}
+
+// MARK: - StoreKitLiveActor
 
 actor StoreKitLiveActor {
     private let userDefaults: UserDefaults
     private let logger: (String) -> Void
     private var productCache: [String: StoreKit.Product] = [:]
-    private var deliveredTransactions: Set<UInt64> = []
     
     init(
         userDefaults: UserDefaults = .standard,
@@ -56,21 +70,19 @@ actor StoreKitLiveActor {
     }
     
     nonisolated func observeTransactions() -> AsyncStream<StoreKitClient.TransactionEvent> {
-        AsyncStream { [weak self] continuation in
-            guard let self else { continuation.finish(); return }
+        AsyncStream { continuation in
+            let actor = self
             Task(priority: .background) {
                 for await update in StoreKit.Transaction.updates {
-                    continuation.yield(await self.handleTransactionUpdate(update))
+                    continuation.yield(await actor.handleTransactionUpdate(update))
                 }
-                
-                continuation.onTermination = { _ in
-                    
-                }
+                continuation.finish()
             }
         }
     }
     
     func requestReview() async {
+        #if canImport(UIKit) && !os(watchOS)
         guard let windowScene = await currentWindowScene() else {
             logger("No window scene found for review request")
             return
@@ -80,13 +92,15 @@ actor StoreKitLiveActor {
         } else {
             await SKStoreReviewController.requestReview(in: windowScene)
         }
+        #else
+        logger("Review request not supported on this platform")
+        #endif
     }
     
     func purchase(productID: String) async throws -> StoreKitClient.Transaction {
         let product = try await fetchOrGetCachedProduct(for: productID)
         let purchaseResult = try await product.purchase()
         let transaction = try handlePurchaseResult(purchaseResult)
-        trackTransaction(transaction)
         return transaction
     }
     
@@ -95,7 +109,6 @@ actor StoreKitLiveActor {
         for await entitlement in StoreKit.Transaction.currentEntitlements {
             guard let transaction = verifiedTransaction(from: entitlement) else { continue }
             let wrapped = StoreKitClient.Transaction(rawValue: transaction)
-            trackTransaction(wrapped)
             restored.append(wrapped)
         }
         logger("Restored \(restored.count) transactions")
@@ -157,17 +170,16 @@ actor StoreKitLiveActor {
     }
     
     private func deliverConsumable(transaction: StoreKit.Transaction, with handler: @Sendable (StoreKitClient.Transaction) async throws -> Void) async {
-        let deliveryKey = "StoreKitClient_delivered_\(transaction.id)"
+        let deliveryKey = UserDefaultsKey.deliveredConsumable(transaction.id)
         guard !userDefaults.bool(forKey: deliveryKey) else {
             logger("Transaction \(transaction.id) already delivered")
             return
         }
-        
+
         do {
             let wrapped = StoreKitClient.Transaction(rawValue: transaction)
             try await handler(wrapped)
             userDefaults.set(true, forKey: deliveryKey)
-            deliveredTransactions.insert(transaction.id)
             await transaction.finish()
             logger("Delivered consumable \(transaction.productID)")
         } catch {
@@ -179,7 +191,6 @@ actor StoreKitLiveActor {
         switch result {
         case .verified(let transaction):
             let wrapped = StoreKitClient.Transaction(rawValue: transaction)
-            trackTransaction(wrapped)
             return transaction.revocationDate != nil ? .removed(wrapped) : .updated(wrapped)
         case .unverified(_, let error):
             logger("Transaction verification failed: \(error)")
@@ -206,13 +217,9 @@ actor StoreKitLiveActor {
         }
     }
     
-    private func trackTransaction(_ transaction: StoreKitClient.Transaction) {
-        if transaction.productType == .consumable {
-            deliveredTransactions.insert(transaction.id)
-        }
-    }
-    
+    #if canImport(UIKit) && !os(watchOS)
     private func currentWindowScene() async -> UIWindowScene? {
         await UIApplication.shared.connectedScenes.first(where: { $0 is UIWindowScene }) as? UIWindowScene
     }
+    #endif
 }

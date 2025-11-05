@@ -38,6 +38,9 @@ extension StoreKitClient: DependencyKey {
             },
             restorePurchases: {
                 await actor.restorePurchases()
+            },
+            getLatestTransaction: {
+                await actor.getLatestTransaction()
             }
         )
     }()
