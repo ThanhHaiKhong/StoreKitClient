@@ -147,7 +147,7 @@ extension StoreKitClient {
         case removed(StoreKitClient.Transaction)
 
         /// Transaction verification failed.
-        case verificationFailed(Error)
+		case verificationFailed(Swift.Error)
     }
 }
 
@@ -155,18 +155,18 @@ extension StoreKitClient {
 
 extension StoreKitClient {
     /// Errors that can occur during StoreKit operations.
-    public enum StoreClientError: Error, Sendable, LocalizedError {
+	public enum `Error`: Swift.Error, Sendable, LocalizedError {
         /// Failed to fetch products from the App Store.
         ///
         /// - Parameters:
         ///   - productIDs: The product identifiers that were requested.
         ///   - underlyingError: The error returned by StoreKit.
-        case fetchProductsFailed(productIDs: Set<String>, underlyingError: Error)
+		case fetchProductsFailed(productIDs: Set<String>, underlyingError: Swift.Error)
 
         /// The transaction failed verification.
         ///
         /// - Parameter error: The verification error.
-        case unverifiedTransaction(Error)
+		case unverifiedTransaction(Swift.Error)
 
         /// The user cancelled the purchase.
         case userCancelled

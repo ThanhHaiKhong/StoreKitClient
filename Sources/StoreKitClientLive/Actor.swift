@@ -142,7 +142,7 @@ actor StoreKitLiveActor {
             return try await StoreKit.Product.products(for: productIDs)
         } catch {
             logger("Failed to fetch products: \(error)")
-            throw StoreKitClient.StoreClientError.fetchProductsFailed(productIDs: productIDs, underlyingError: error)
+            throw StoreKitClient.Error.fetchProductsFailed(productIDs: productIDs, underlyingError: error)
         }
     }
     
@@ -159,7 +159,7 @@ actor StoreKitLiveActor {
     private func fetchSingleProduct(for productID: String) async throws -> StoreKit.Product {
         let products = try await fetchStoreKitProducts(for: [productID])
         guard let product = products.first else {
-            throw StoreKitClient.StoreClientError.productNotFound(productID: productID)
+            throw StoreKitClient.Error.productNotFound(productID: productID)
         }
         return product
     }
@@ -206,14 +206,14 @@ actor StoreKitLiveActor {
                 logger("Purchase succeeded for \(transaction.productID)")
                 return StoreKitClient.Transaction(rawValue: transaction)
             case .unverified(_, let error):
-                    throw StoreKitClient.StoreClientError.unverifiedTransaction(error)
+                    throw StoreKitClient.Error.unverifiedTransaction(error)
             }
         case .userCancelled:
-                throw StoreKitClient.StoreClientError.userCancelled
+                throw StoreKitClient.Error.userCancelled
         case .pending:
-                throw StoreKitClient.StoreClientError.purchasePending
+                throw StoreKitClient.Error.purchasePending
         @unknown default:
-                throw StoreKitClient.StoreClientError.unknownPurchaseResult
+                throw StoreKitClient.Error.unknownPurchaseResult
         }
     }
     
