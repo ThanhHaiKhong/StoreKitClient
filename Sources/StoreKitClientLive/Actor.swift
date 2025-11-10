@@ -131,7 +131,7 @@ actor StoreKitLiveActor {
             }
         }
         
-        return StoreKitClient.Transaction(rawValue: latestTransaction)
+		return latestTransaction == nil ? nil : StoreKitClient.Transaction(rawValue: latestTransaction)
     }
     
     // MARK: - Private Helpers
