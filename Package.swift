@@ -29,6 +29,12 @@ let package = Package(
                 "StoreKitClient"
             ]
         ),
+        .testTarget(
+            name: "StoreKitClientTests",
+            dependencies: [
+                "StoreKitClient",
+            ]
+        ),
     ]
 )
 

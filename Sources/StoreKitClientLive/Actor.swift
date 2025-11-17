@@ -48,7 +48,11 @@ actor StoreKitLiveActor {
                     #if DEBUG
                     print("🛍️ [STORE_KIT_LIVE_ACTOR]: Transaction update received: \(transaction.productID)")
                     #endif
-                    // Transaction will be handled by observeTransactions stream or processUnfinishedConsumables
+                    // Finish the transaction for non-consumables and non-renewable subscriptions
+                    // Consumables will be finished after delivery in processUnfinishedConsumables
+                    if transaction.productType != .consumable {
+                        await transaction.finish()
+                    }
                 case .unverified(_, let error):
                     #if DEBUG
                     print("🛍️ [STORE_KIT_LIVE_ACTOR]: Unverified transaction update: \(error)")
