@@ -28,7 +28,7 @@ extension StoreKitClient: DependencyKey {
                 await actor.processUnfinishedConsumables(handler: deliverConsumable)
             },
             observeTransactions: {
-                actor.observeTransactions()
+                await actor.observeTransactions()
             },
             requestReview: {
                 await actor.requestReview()

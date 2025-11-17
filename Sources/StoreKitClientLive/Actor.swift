@@ -28,7 +28,8 @@ actor StoreKitLiveActor {
     private let userDefaults: UserDefaults
     private let logger: (String) -> Void
     private var productCache: [String: StoreKit.Product] = [:]
-    
+    private var transactionUpdateTask: Task<Void, Never>?
+
     init(
         userDefaults: UserDefaults = .standard,
         logger: @escaping (String) -> Void = { message in
@@ -39,6 +40,26 @@ actor StoreKitLiveActor {
     ) {
         self.userDefaults = userDefaults
         self.logger = logger
+
+        self.transactionUpdateTask = Task { @Sendable in
+            for await update in StoreKit.Transaction.updates {
+                switch update {
+                case .verified(let transaction):
+                    #if DEBUG
+                    print("🛍️ [STORE_KIT_LIVE_ACTOR]: Transaction update received: \(transaction.productID)")
+                    #endif
+                    // Transaction will be handled by observeTransactions stream or processUnfinishedConsumables
+                case .unverified(_, let error):
+                    #if DEBUG
+                    print("🛍️ [STORE_KIT_LIVE_ACTOR]: Unverified transaction update: \(error)")
+                    #endif
+                }
+            }
+        }
+    }
+
+    deinit {
+        transactionUpdateTask?.cancel()
     }
     
     nonisolated func receiptURL() -> URL? {
@@ -69,7 +90,7 @@ actor StoreKitLiveActor {
         }
     }
     
-    nonisolated func observeTransactions() -> AsyncStream<StoreKitClient.TransactionEvent> {
+    nonisolated func observeTransactions() async -> AsyncStream<StoreKitClient.TransactionEvent> {
         AsyncStream { continuation in
             let actor = self
             Task(priority: .background) {

@@ -69,7 +69,7 @@ public struct StoreKitClient: Sendable {
     /// transaction updates, and verification failures.
     ///
     /// - Returns: An `AsyncStream` that emits `TransactionEvent` values.
-    public var observeTransactions: @Sendable () -> AsyncStream<TransactionEvent> = { .finished }
+    public var observeTransactions: @Sendable () async -> AsyncStream<TransactionEvent> = { .finished }
 
     /// Requests an App Store review from the user.
     ///
