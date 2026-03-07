@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "StoreKitClient",
     platforms: [
-        .iOS(.v16), .macOS(.v12), .tvOS(.v15), .watchOS(.v8), .visionOS(.v1)
+        .iOS(.v16), .macOS(.v13), .tvOS(.v16), .watchOS(.v9), .visionOS(.v1)
     ],
     products: [
         .singleTargetLibrary("StoreKitClient"),
