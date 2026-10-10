@@ -29,7 +29,7 @@ let package = Package(
     //   .package(url: "…/StoreKitClient.git", from: "5.0.0")                  // no funnel
     //   .package(url: "…/StoreKitClient.git", from: "5.0.0", traits: ["Funnel"])
     traits: [
-        .default(enabledTraits: []),
+        .default(enabledTraits: ["Funnel"]),
         Trait(
             name: "Funnel",
             description: "Conform StoreKitClient to FunnelClient's StoreKit port."
