@@ -6,7 +6,9 @@ set -eu
 url=$(git config --get remote.origin.url)
 repo=$(basename "$url" .git)
 
-MAHA="git@github.com:mahainc/${repo}.git"
+# Plain github.com authenticates as ThanhHaiKhong, which cannot write to mahainc;
+# the haikt-vtn SSH alias carries the account that can.
+MAHA="git@github.com-haikt-vtn:mahainc/${repo}.git"
 THK="git@github.com:ThanhHaiKhong/${repo}.git"
 
 git config --unset-all remote.origin.pushurl 2>/dev/null || true
