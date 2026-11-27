@@ -133,7 +133,8 @@ let store = TestStore(initialState: PaywallFeature.State()) {
 
 ## Platform support
 
-- iOS 16+, macOS 13+, tvOS 16+, watchOS 9+, visionOS 1+
+- iOS 17+, macOS 14+ (since 2.0.0)
+- 1.x supported iOS 16+, macOS 13+, tvOS 16+, watchOS 9+, visionOS 1+
 
 ## License
 
